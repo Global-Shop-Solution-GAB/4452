@@ -1,0 +1,492 @@
+Program.Sub.ScreenSU.Start
+Gui.Form..Create
+Gui.Form..Caption("Op Codes To Backflush")
+Gui.Form..Size(5865,7350)
+Gui.Form..MinX(0)
+Gui.Form..MinY(0)
+Gui.Form..Position(0,0)
+Gui.Form..BackColor(-2147483633)
+Gui.Form..MousePointer(0)
+Gui.Form..Event(UnLoad,Form_UnLoad)
+Gui.Form.GsGridControl1.Create(GsGridControl)
+Gui.Form.GsGridControl1.Size(2145,6210)
+Gui.Form.GsGridControl1.Position(285,570)
+Gui.Form.GsGridControl2.Create(GsGridControl)
+Gui.Form.GsGridControl2.Size(2145,6210)
+Gui.Form.GsGridControl2.Position(3420,570)
+Gui.Form.lbl1.Create(Label,"Op Codes To Not Backflush",True,2445,255,0,285,330,True,0,"Arial",8,-2147483633,0)
+Gui.Form.lbl2.Create(Label,"Op Codes To Backflush",True,2445,255,0,3420,330,True,0,"Arial",8,-2147483633,0)
+Gui.Form.cmdMove1.Create(Button)
+Gui.Form.cmdMove1.Size(690,375)
+Gui.Form.cmdMove1.Position(2580,2670)
+Gui.Form.cmdMove1.Caption(">")
+Gui.Form.cmdMove1.Event(Click,cmdMove_Click)
+Gui.Form.cmdMoveAll.Create(Button)
+Gui.Form.cmdMoveAll.Size(690,375)
+Gui.Form.cmdMoveAll.Position(2580,3060)
+Gui.Form.cmdMoveAll.Caption(">>>")
+Gui.Form.cmdMoveAll.Event(Click,cmdMove_Click)
+Gui.Form.cmdRemoveAll.Create(Button)
+Gui.Form.cmdRemoveAll.Size(690,375)
+Gui.Form.cmdRemoveAll.Position(2580,3450)
+Gui.Form.cmdRemoveAll.Caption("<<<")
+Gui.Form.cmdRemoveAll.Event(Click,cmdRemove_Click)
+Gui.Form.cmdRemove1.Create(Button)
+Gui.Form.cmdRemove1.Size(690,375)
+Gui.Form.cmdRemove1.Position(2580,3840)
+Gui.Form.cmdRemove1.Caption("<")
+Gui.Form.cmdRemove1.Event(Click,cmdRemove_Click)
+Program.Sub.ScreenSU.End
+
+Program.Sub.Preflight.Start
+Program.Sub.Preflight.End
+
+Program.Sub.Main.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.sSource.Declare(String)
+
+F.ODBC.Connection!con.OpenConnection(V.Ambient.PDSN,V.Ambient.PUser,V.Ambient.PPass)
+
+F.Intrinsic.Control.SelectCase(V.Caller.Hook)
+	'inv populate hook
+	F.Intrinsic.Control.Case(10120)
+		F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PL",240)
+		F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PT",112)
+		F.Intrinsic.Variable.SetProperty("GAB-LBL-1","PW",105)
+		F.Intrinsic.Variable.SetProperty("GAB-CHK-1","PL",220)
+		F.Intrinsic.Variable.SetProperty("GAB-CHK-1","PT",112)
+		F.Intrinsic.Variable.SetProperty("GAB-CHK-1","PW",15)
+		V.Passed.GAB-LBL-1.Set("Back Flush")
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-1,"LOCK",1)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-CHK-1,"LOCK",1)
+
+	'inv part change hook
+	F.Intrinsic.Control.Case(10125)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-LBL-1,"LOCK",0)
+		F.Intrinsic.UI.ChangeCallerProperty(V.Passed.GAB-CHK-1,"LOCK",0)
+		F.Intrinsic.Control.SelectCase(V.Passed.000060.UCase)
+			F.Intrinsic.Control.Case("PURCH TO STOCK")
+				V.Local.sSource.Set("P")
+			
+			F.Intrinsic.Control.Case("PURCH TO JOB")
+				V.Local.sSource.Set("J")
+			
+			F.Intrinsic.Control.Case("MANUF TO STOCK")
+				V.Local.sSource.Set("M")
+			
+			F.Intrinsic.Control.Case("MANUF TO JOB")
+				V.Local.sSource.Set("F")
+				
+			F.Intrinsic.Control.Case("CONSIGN TO STOCK")
+				V.Local.sSource.Set("C")
+				
+			F.Intrinsic.Control.Case("CONSIGN TO JOB")
+				V.Local.sSource.Set("G")
+			
+		F.Intrinsic.Control.EndSelect
+		
+		F.Intrinsic.String.Build("Select Part, Rev, Location, PL, Code_Sort, Code_Source, Backflush From GCG_4452_Prt_BFlush Where Part = '{0}' and Rev = '{1}' and Location = '{2}' and PL = '{3}' and Code_Sort = '{4}' and Code_Source = '{5}'",V.Passed.000007.Trim,V.Passed.000008.Trim,V.Passed.000009.Trim,V.Passed.000011.Trim,V.Passed.000025.Trim,V.Local.sSource,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("Part","con",V.Local.sSql,True)
+
+		F.Intrinsic.Control.If(V.DataTable.Part.RowCount--,<>,-1)
+			V.Passed.GAB-CHK-1.Set("Y")
+		F.Intrinsic.Control.Else
+			V.Passed.GAB-CHK-1.Set("N")
+		F.Intrinsic.Control.EndIf
+
+	'inv post save hook	
+	F.Intrinsic.Control.Case(10185)
+		'saving part rev location and backflush to custom table 
+		F.Intrinsic.String.Build("Select Part, Rev, Location, PL, Code_Sort, Code_Source, Backflush From GCG_4452_Prt_BFlush Where Part = '{0}' and Rev = '{1}' and Location = '{2}'",V.Passed.000007.Trim,V.Passed.000008.Trim,V.Passed.000009.Trim,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("Part","con",V.Local.sSql,True)
+		
+		F.Intrinsic.Control.SelectCase(V.Passed.000060.UCase)
+			F.Intrinsic.Control.Case("PURCH TO STOCK")
+				V.Local.sSource.Set("P")
+			
+			F.Intrinsic.Control.Case("PURCH TO JOB")
+				V.Local.sSource.Set("J")
+			
+			F.Intrinsic.Control.Case("MANUF TO STOCK")
+				V.Local.sSource.Set("M")
+			
+			F.Intrinsic.Control.Case("MANUF TO JOB")
+				V.Local.sSource.Set("F")
+				
+			F.Intrinsic.Control.Case("CONSIGN TO STOCK")
+				V.Local.sSource.Set("C")
+				
+			F.Intrinsic.Control.Case("CONSIGN TO JOB")
+				V.Local.sSource.Set("G")
+			
+		F.Intrinsic.Control.EndSelect
+		
+		F.Intrinsic.Control.If(V.Passed.GAB-CHK-1,=,"Y")
+			F.Intrinsic.Control.If(V.DataTable.Part.RowCount--,=,-1)
+				F.Data.DataTable.AddRow("Part","Part",V.Passed.000007.Trim,"Rev",V.Passed.000008.Trim,"Location",V.Passed.000009.Trim,"PL",V.Passed.000011.Trim,"Code_Sort",v.Passed.000025.Trim,"Code_Source",V.Local.sSource,"BackFlush",True)
+			F.Intrinsic.Control.Else
+				F.Data.DataTable.SetValue("Part",0,"Part",V.Passed.000007.Trim,"Rev",V.Passed.000008.Trim,"Location",V.Passed.000009.Trim,"PL",V.Passed.000011.Trim,"Code_Sort",v.Passed.000025.Trim,"Code_Source",V.Local.sSource,"BackFlush",True)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.Else
+			F.Intrinsic.Control.If(V.DataTable.Part.RowCount--,=,-1)
+				F.Data.DataTable.AddRow("Part","Part",V.Passed.000007.Trim,"Rev",V.Passed.000008.Trim,"Location",V.Passed.000009.Trim,"PL",V.Passed.000011.Trim,"Code_Sort",v.Passed.000025.Trim,"Code_Source",V.Local.sSource,"BackFlush",False)
+			F.Intrinsic.Control.Else
+				F.Data.DataTable.SetValue("Part",0,"Part",V.Passed.000007.Trim,"Rev",V.Passed.000008.Trim,"Location",V.Passed.000009.Trim,"PL",V.Passed.000011.Trim,"Code_Sort",v.Passed.000025.Trim,"Code_Source",V.Local.sSource,"BackFlush",False)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+
+		F.Data.DataTable.SaveToDB("Part","con","GCG_4452_Prt_BFlush","Part*!*Rev*!*Location")
+
+		'unchecking chk box
+		V.Passed.GAB-CHK-1.Set("N")
+
+	'Gui OLS003  Pre-Process Hook for single and multiple jobs
+	F.Intrinsic.Control.Case(15881)
+		'getting data from custom table for saving
+		F.Intrinsic.String.Build("Select Backflush From GCG_4452_Op_Codes Where Operation = '{0}' and BackFlush = 1",V.Passed.009001.Trim,V.Local.sSql)
+		F.Data.DataTable.CreateFromSQL("Op_Code","con",V.Local.sSql,True)
+		F.Intrinsic.Control.If(V.DataTable.Op_Code.RowCount--,<>,-1)
+			F.Intrinsic.Control.CallSub(backflush,"Job",V.passed.009990,"Suffix",V.Passed.009991,"Seq",V.Passed.009992)
+		F.Intrinsic.Control.EndIf
+
+	'when ran from menu	
+	F.Intrinsic.Control.CaseElse
+		F.Intrinsic.Control.CallSub(populategrids)
+		Gui.Form..Show
+
+F.Intrinsic.Control.EndSelect
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Main.End
+
+Program.Sub.Form_UnLoad.Start
+F.Intrinsic.Control.SetErrorHandler("Main_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+F.Intrinsic.Control.If(V.DataTable.Part.Exists,=,True)
+	F.Data.DataTable.Close("Part")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.Back.Exists,=,True)
+	F.Data.DataTable.Close("Back")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.NoBack.Exists,=,True)
+	F.Data.DataTable.Close("NoBack")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataTable.Op_Code.Exists,=,True)
+	F.Data.DataTable.Close("Op_Code")
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.DataView.Op_Code!Op_Code.Exists,=,True)
+	F.Data.DataView.Close("Op_Code","Op_Code")
+F.Intrinsic.Control.EndIf
+
+F.ODBC.Connection!con.Close
+F.Intrinsic.Control.End
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Main_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.End
+
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Form_UnLoad.End
+
+Program.Sub.cmdMove_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdMove_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sValue.Declare(String)
+V.Local.sFilter.Declare(String)
+V.Local.iIndex.Declare(Long)
+V.Local.i.Declare(Long)
+
+F.Intrinsic.Control.SelectCase(V.Args.ControlName)
+	F.Intrinsic.Control.Case("CMDMOVE1")
+		'moving selected row(s) to grid 2
+		Gui.Form.GsGridControl1.GetSelectedRows("NoBack",V.Local.sRet)
+		F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+		V.Local.i.Set(V.Local.sRet.UBound)
+		F.Intrinsic.Control.For(V.Local.i,V.Local.sRet.UBound,0,-1)
+			F.Intrinsic.String.Build("Operation = '{0}'",V.DataTable.NoBack(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,V.Local.sFilter)
+			F.Data.DataView.Create("Op_Code","Op_Code",22,V.Local.sFilter,"Operation")
+			F.Intrinsic.Control.If(V.DataView.Op_Code!Op_Code.RowCount--,=,-1)
+				F.Data.DataTable.AddRow("Back","Operation",V.DataTable.NoBack(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",True)
+				F.Data.DataTable.AddRow("Op_Code","Operation",V.DataTable.NoBack(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",True)
+			F.Intrinsic.Control.Else
+				F.Data.DataTable.AddRow("Back","Operation",V.DataTable.NoBack(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",True)
+				F.Data.DataView.SetValue("Op_Code","Op_Code",0,"Operation",V.DataTable.NoBack(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",True)
+			F.Intrinsic.Control.EndIf
+			F.Data.DataTable.DeleteRow("NoBack",V.Local.sRet(V.Local.i).Long)
+			F.Data.DataView.Close("Op_Code","Op_Code")
+		F.Intrinsic.Control.Next(V.Local.i)
+	F.Intrinsic.Control.Case("CMDMOVEALL")
+		'moving all rows to grid 2
+		F.Data.DataTable.SetValue("NoBack",-1,"BackFlush",True)
+		F.Data.DataTable.Merge("NoBack","Back",False,2)
+		F.Data.DataTable.Merge("Back","Op_Code",False,2)
+
+		F.Data.DataTable.DeleteRow("NoBack")
+
+F.Intrinsic.Control.EndSelect
+
+F.Data.DataTable.SaveToDB("Op_Code","con","GCG_4452_Op_Codes","Operation",256,"Operation@!@Operation*!*Backflush@!@Backflush")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdMove_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.cmdMove_Click.End
+
+Program.Sub.cmdRemove_Click.Start
+F.Intrinsic.Control.SetErrorHandler("cmdRemove_Click_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sRet.Declare(String)
+V.Local.sValue.Declare(String)
+V.Local.sFilter.Declare(String)
+V.Local.iIndex.Declare(Long)
+V.Local.i.Declare(Long)
+
+F.Intrinsic.Control.SelectCase(V.Args.ControlName)
+	F.Intrinsic.Control.Case("CMDREMOVE1")
+		'moving selected row(s) to grid 1
+		Gui.Form.GsGridControl2.GetSelectedRows("Back",V.Local.sRet)
+		F.Intrinsic.String.Split(V.Local.sRet,"*!*",V.Local.sRet)
+		V.Local.i.Set(V.Local.sRet.UBound)
+		F.Intrinsic.Control.For(V.Local.i,V.Local.sRet.UBound,0,-1)
+			F.Intrinsic.String.Build("Operation = '{0}'",V.DataTable.Back(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,V.Local.sFilter)
+			F.Data.DataView.Create("Op_Code","Op_Code",22,V.Local.sFilter,"Operation")
+			F.Intrinsic.Control.If(V.DataView.Op_Code!Op_Code.RowCount--,=,-1)
+				F.Data.DataTable.AddRow("NoBack","Operation",V.DataTable.Back(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",False)
+				F.Data.DataTable.AddRow("Op_Code","Operation",V.DataTable.Back(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",False)
+			F.Intrinsic.Control.Else
+				F.Data.DataTable.AddRow("NoBack","Operation",V.DataTable.Back(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",False)
+				F.Data.DataView.SetValue("Op_Code","Op_Code",0,"Operation",V.DataTable.Back(V.Local.sRet(V.Local.i).Long).Operation!FieldValTrim,"BackFlush",False)
+			F.Intrinsic.Control.EndIf
+			F.Data.DataTable.DeleteRow("Back",V.Local.sRet(V.Local.i).Long)
+			F.Data.DataView.Close("Op_Code","Op_Code")
+		F.Intrinsic.Control.Next(V.Local.i)
+	F.Intrinsic.Control.Case("CMDREMOVEALL")
+		'moving all rows to grid 1
+		F.Data.DataTable.SetValue("Back",-1,"BackFlush",False)
+		F.Data.DataTable.Merge("Back","NoBack",False,2)
+		F.Data.DataTable.Merge("NoBack","Op_Code",False,2)
+
+		F.Data.DataTable.DeleteRow("Back")
+
+F.Intrinsic.Control.EndSelect
+
+F.Data.DataTable.SaveToDB("Op_Code","con","GCG_4452_Op_Codes","Operation",256,"Operation@!@Operation*!*Backflush@!@Backflush")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("cmdRemove_Click_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.cmdRemove_Click.End
+
+Program.Sub.Populategrids.Start
+F.Intrinsic.Control.SetErrorHandler("Populategrids_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+
+'getting data from custom table for saving
+V.Local.sSql.Set("Select rtrim(Operation) as Operation, Backflush From GCG_4452_Op_Codes")
+F.Data.DataTable.CreateFromSQL("Op_Code","con",V.Local.sSql,True)
+F.Data.DataTable.SetPK("Op_Code","Operation")
+
+'getting data from custom table and op code table where backflush is not set to true
+V.Local.sSql.Set("Select distinct rtrim(a.Operation) as Operation, Cast(isnull(backflush,0) as bit) as Backflush From V_Op_Codes a Left Join GCG_4452_Op_Codes b on a.Operation = b.Operation Where (BackFlush = 0 or BackFlush is null) and LMO = 'L' and Operation <> ' '")
+F.Data.DataTable.CreateFromSQL("NoBack","con",V.Local.sSql,True)
+F.Data.DataTable.SetPK("NoBack","Operation")
+
+'getting data from custom table where op_code back flush is true
+V.Local.sSql.Set("Select rtrim(Operation) as Operation, Backflush From GCG_4452_Op_Codes Where BackFlush = 1")
+F.Data.DataTable.CreateFromSQL("Back","con",V.Local.sSql,True)
+F.Data.DataTable.SetPK("Back","Operation")
+
+F.Intrinsic.Control.CallSub(setgridproperties)
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("Populategrids_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.Populategrids.End
+
+Program.Sub.SetGridProperties.Start
+F.Intrinsic.Control.SetErrorHandler("SetGridProperties_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+
+'setting properties for the no backflush grid
+Gui.Form.GsGridControl1.AddGridviewFromDatatable("NoBack","NoBack")
+Gui.Form.GsGridControl1.SetGridviewProperty("NoBack","readonly","True")
+Gui.Form.GsGridControl1.SetGridviewProperty("NoBack","multiselect","True")
+Gui.Form.GsGridControl1.SetGridviewProperty("NoBack","MultiSelectMode","0")
+Gui.Form.GsGridControl1.SetGridviewProperty("NoBack","Editable","False")
+Gui.Form.GsGridControl1.SetColumnProperty("NoBack","BackFlush","Visible","False")
+Gui.Form.GsGridControl1.SetColumnProperty("NoBack","Operation","HeaderBackColor","#d3d3d3")
+
+
+'setting properites for the backflush grid
+Gui.Form.GsGridControl2.AddGridviewFromDatatable("Back","Back")
+Gui.Form.GsGridControl2.SetGridviewProperty("Back","readonly","True")
+Gui.Form.GsGridControl2.SetGridviewProperty("Back","multiselect","True")
+Gui.Form.GsGridControl2.SetGridviewProperty("Back","MultiSelectMode","0")
+Gui.Form.GsGridControl2.SetGridviewProperty("Back","Editable","False")
+Gui.Form.GsGridControl2.SetColumnProperty("Back","BackFlush","Visible","False")
+Gui.Form.GsGridControl2.SetColumnProperty("Back","Operation","HeaderBackColor","#d3d3d3")
+
+Gui.Form.GsGridControl1.MainView("NoBack")
+Gui.Form.GsGridControl2.MainView("Back")
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("SetGridProperties_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.SetGridProperties.End
+
+Program.Sub.BackFlush.Start
+F.Intrinsic.Control.SetErrorHandler("BackFlush_Err")
+F.Intrinsic.Control.ClearErrors
+
+V.Local.sError.Declare(String)
+V.Local.sSql.Declare(String)
+V.Local.sSeq.Declare(String)
+V.Local.sLine.Declare(String)
+V.Local.sFile.Declare(String)
+V.Local.sDate.Declare(String)
+V.Local.sPart.Declare(String)
+V.Local.sRev.Declare(String)
+
+F.Intrinsic.String.Build("SELECT TOP 1 SEQ FROM V_JOB_OPERATIONS WHERE JOB = '{0}' AND SUFFIX = '{1}' AND LMO = 'L'  and SEQ < '{2}' ORDER BY SEQ Desc ",V.Args.Job,V.Args.Suffix,V.Args.Seq,V.Local.sSql)
+F.ODBC.Connection!Con.OpenLocalRecordsetRO("rstSeq",V.Local.sSQL)
+F.Intrinsic.Control.If(V.ODBC.Con!rstSEQ.EOF,=,False)
+	V.Local.sSeq.Set(V.ODBC.Con!rstSEQ.FieldValTrim!SEQ)
+F.Intrinsic.Control.EndIf
+F.ODBC.con!rstSeq.Close
+
+F.Intrinsic.Control.If(V.Local.sSeq.Length,>,0)
+	F.Intrinsic.String.Build("SELECT Job, Suffix, Seq, Part, Locn, Hours_Estimated, Date_Completed, Flag_Closed FROM JOB_OPERATIONS WHERE LMO = 'M' AND JOB = '{0}' AND SUFFIX = '{1}' AND Flag_Closed <> 'Y' and SEQ Between '{2}' and '{3}' ORDER BY SEQ Desc ",V.Args.Job,V.Args.Suffix,V.Local.sSeq,V.Args.Seq,V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRW("rstSeq",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.Con!rstSEQ.EOF,=,True)
+		V.Local.sPart.Set(V.ODBC.con!rstSeq.FieldValTrim!Part)
+		F.Intrinsic.String.RPad(V.Local.sPart," ",20,V.Local.sPart)
+		F.Intrinsic.String.Right(V.Local.sPart,3,V.Local.sRev)
+		F.Intrinsic.String.Left(V.Local.sPart,17,V.Local.sPart)
+		F.Intrinsic.String.Build("Select BackFlush From GCG_4452_Prt_BFlush Where Part = '{0}' and Rev = '{1}' and Location = '{2}' and BackFlush = 1",V.Local.sPart.Trim,V.Local.sRev.Trim,V.ODBC.con!rstSeq.FieldValTrim!Locn,V.Local.sSql)
+		F.ODBC.Connection!con.OpenLocalRecordsetRO("rstPrt",V.Local.sSql)
+		F.Intrinsic.Control.If(V.ODBC.Con!rstPrt.EOF,=,False)
+			F.Intrinsic.Control.If(V.Local.sLine.Length,=,0)
+				F.Intrinsic.String.Build("{0},{8},,{1},{2},{3},,{4},{5},{6},{7}",V.Local.sPart,V.ODBC.con!rstSeq.FieldValFloat!Hours_Estimated," "," "," ",V.Args.Job,V.Args.Suffix,V.ODBC.con!rstSeq.FieldValTrim!Seq,V.Local.sRev,V.Local.sLine)
+			F.Intrinsic.Control.Else
+				F.Intrinsic.String.Build("{0}{9}{1},{10},,{2},{3},{4},,{5},{6},{7},{8}",V.Local.sLine,V.Local.sPart,V.ODBC.con!rstSeq.FieldValFloat!Hours_Estimated," "," "," ",V.Args.Job,V.Args.Suffix,V.ODBC.con!rstSeq.FieldValTrim!Seq,V.Ambient.NewLine,V.Local.sRev,V.Local.sLine)
+			F.Intrinsic.Control.EndIf
+		F.Intrinsic.Control.EndIf
+		F.ODBC.con!rstPrt.Close
+		F.ODBC.con!rstSeq.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstSeq.Close
+F.Intrinsic.Control.Else
+	F.Intrinsic.String.Build("SELECT Job, Suffix, Seq, Part, Hours_Estimated, Date_Completed, Flag_Closed FROM JOB_OPERATIONS WHERE LMO = 'M' AND JOB = '{0}' AND SUFFIX = '{1}' AND Flag_Closed <> 'Y' AND SEQ Between '000001' and '{3}' ORDER BY SEQ Desc ",V.Args.Job,V.Args.Suffix,V.Local.sSeq,V.Args.Seq,V.Local.sSql)
+	F.ODBC.Connection!con.OpenLocalRecordsetRW("rstSeq",V.Local.sSql)
+	F.Intrinsic.Control.DoUntil(V.ODBC.Con!rstSEQ.EOF,=,True)
+		V.Local.sPart.Set(V.ODBC.con!rstSeq.FieldValTrim!Part)
+		F.Intrinsic.String.RPad(V.Local.sPart," ",20,V.Local.sPart)
+		F.Intrinsic.String.Right(V.Local.sPart,3,V.Local.sRev)
+		F.Intrinsic.String.Left(V.Local.sPart,17,V.Local.sPart)
+		F.Intrinsic.String.Build("Select BackFlush From GCG_4452_Prt_BFlush Where Part = '{0}' and Rev = '{1}' and BackFlush = 1",V.Local.sPart.Trim,V.Local.sRev.Trim,V.Local.sSql)
+		F.ODBC.Connection!con.OpenLocalRecordsetRO("rstPrt",V.Local.sSql)
+		F.Intrinsic.Control.If(V.ODBC.Con!rstPrt.EOF,=,False)
+			F.Intrinsic.Control.If(V.Local.sLine.Length,=,0)
+				F.Intrinsic.String.Build("{0},{8},,{1},{2},{3},,{4},{5},{6},{7}",V.Local.sPart,V.ODBC.con!rstSeq.FieldValFloat!Hours_Estimated," "," "," ",V.Args.Job,V.Args.Suffix,V.ODBC.con!rstSeq.FieldValTrim!Seq,V.Local.sRev,V.Local.sLine)
+			F.Intrinsic.Control.Else
+				F.Intrinsic.String.Build("{0}{9}{1},{10},,{2},{3},{4},,{5},{6},{7},{8}",V.Local.sLine,V.Local.sPart,V.ODBC.con!rstSeq.FieldValFloat!Hours_Estimated," "," "," ",V.Args.Job,V.Args.Suffix,V.ODBC.con!rstSeq.FieldValTrim!Seq,V.Ambient.NewLine,V.Local.sRev,V.Local.sLine)
+			F.Intrinsic.Control.EndIf
+
+			F.ODBC.con!rstSeq.Set!Flag_Closed("Y")
+			F.Intrinsic.String.Format(V.Ambient.Date,"YYMMDD",V.Local.sDate)
+			F.ODBC.con!rstSeq.Set!DATE_COMPLETED(V.Local.sDate)
+
+		F.Intrinsic.Control.EndIf
+		F.ODBC.con!rstPrt.Close
+		F.ODBC.con!rstSeq.Update
+
+		F.ODBC.con!rstSeq.MoveNext
+	F.Intrinsic.Control.Loop
+	F.ODBC.con!rstSeq.Close
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.If(V.Local.sLine.Trim,<>,"")
+	F.Intrinsic.String.Build("{0}\L{1}{2}MOPEN.txt",V.Caller.FilesDir,V.Caller.CompanyCode,V.Caller.Terminal,V.Local.sFile)
+	F.Intrinsic.File.String2File(V.Local.sFile,V.Local.sLine.Trim)
+	F.Intrinsic.String.Build("L{0}{1}MOPEN.txt",V.Caller.CompanyCode,V.Caller.Terminal,V.Local.sFile)
+	F.Global.General.CallWrapperSync(450100, v.Local.sFile)
+F.Intrinsic.Control.EndIf
+
+F.Intrinsic.Control.ExitSub
+
+F.Intrinsic.Control.Label("BackFlush_Err")
+F.Intrinsic.Control.If(V.Ambient.ErrorNumber,<>,0)
+	Function.Intrinsic.String.Concat("Project: GCG_4452_BackFlush.g2u",V.Ambient.Newline,V.Ambient.Newline,"Subroutine: ",V.Ambient.CurrentSubroutine,V.Ambient.NewLine,"Error Occurred ",V.Ambient.ErrorNumber," with description ",V.Ambient.ErrorDescription,V.Local.sError)
+	F.Intrinsic.UI.Msgbox(V.Local.sError)
+	F.Intrinsic.Control.CallSub(form_unload)
+Function.Intrinsic.Control.EndIf
+
+
+Program.Sub.BackFlush.End
+
+Program.Sub.Comments.Start
+${$0$}$$}$RLK$}$3/27/2017 3:39:15 PM$}$False
+Program.Sub.Comments.End
